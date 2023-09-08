@@ -1,6 +1,8 @@
 
 #%%
-
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 import polars as pl
 from pathlib import Path
 
@@ -41,14 +43,53 @@ def set_title_group(title:str)->str:
         case "Master":
             return "YoungerMan"
 
+def get_cabin_level(cabin:str)->str:
+    if cabin == "null":
+        return "None"
+    else:
+        return cabin[0]
+
+
+
 train_data = (train_data
               .with_columns(pl.col("Name").apply(get_title).alias("Title"))
               .with_columns(pl.col("Title").apply(set_title_group).alias("Title_Group"))
+              .with_columns(pl.col("Cabin").fill_null("null"))
+              .with_columns(pl.col("Cabin").apply(get_cabin_level).alias("Cabin_Level"))
 )
 
 title_counts = train_data.group_by(["Title_Group"]).agg(pl.count("Name"))
 title_counts
+
+cabin_levels = train_data.group_by(["Cabin_Level"]).agg(pl.count("Name"))
+cabin_levels
 # %%
 
+X = train_data.select([
+                    'Pclass',
+                    'Sex',
+                    'Age',
+                    'SibSp',
+                    'Parch',
+                    'Fare',
+                    'Embarked',
+                    'Title_Group'
+                ]).to_pandas()
 
+y = train_data.select("Survived").to_pandas()
 
+# %%
+
+# Split your data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create a Linear Regression model and fit it to your training data
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Use your trained model to make predictions on your test data
+y_pred = model.predict(X_test)
+
+# Evaluate your model
+mse = mean_squared_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
