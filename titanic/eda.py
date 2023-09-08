@@ -28,17 +28,27 @@ def set_title_group(title:str)->str:
     match title:
         case "Capt" | "Col" | "Major":
             return "Military"
-        case "Lady" | "Jonkheer" | "Sir" | "Lord" | "Don":
+        case "Lady" | "Jonkheer" | "Sir" | "Lord" | "Don" | "Countess" | "Count":
             return "Aristocracy"
         case "Rev" | "Dr":
             return "Profession"
-        case "Mrs" | "Mme":
+        case "Mrs" | "Mme" | "Mlle":
             return "MarriedWoman"
-        case "Miss" | "Mme":
+        case "Miss" | "Mme" | "Ms":
             return "SingleWoman"
+        case "Mr":
+            return "OlderMan"
+        case "Master":
+            return "YoungerMan"
 
-# %%
-train_data = train_data.with_columns(pl.col("Name").apply(get_title).alias("Title"))
-title_counts = train_data.group_by("Title").agg(pl.count("Name"))
+train_data = (train_data
+              .with_columns(pl.col("Name").apply(get_title).alias("Title"))
+              .with_columns(pl.col("Title").apply(set_title_group).alias("Title_Group"))
+)
+
+title_counts = train_data.group_by(["Title_Group"]).agg(pl.count("Name"))
 title_counts
 # %%
+
+
+
