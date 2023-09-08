@@ -1,10 +1,14 @@
 
 #%%
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_squared_error
 import polars as pl
 from pathlib import Path
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
 
 
 #%% Read in data
@@ -58,6 +62,7 @@ train_data = (train_data
               .with_columns(pl.col("Cabin").apply(get_cabin_level).alias("Cabin_Level"))
 )
 
+# check out the data
 title_counts = train_data.group_by(["Title_Group"]).agg(pl.count("Name"))
 title_counts
 
@@ -83,8 +88,31 @@ y = train_data.select("Survived").to_pandas()
 # Split your data into training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+
+# build out preprocessing pipeline
+numeric_features = ['Age', 'SibSp', 'Parch', 'Fare']
+categorical_features = ['Pclass', 'Sex', 'Embarked', 'Title_Group']
+
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())])
+
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_features),
+        ('cat', categorical_transformer, categorical_features)])
+
+model = Pipeline(steps=[('preprocessor', preprocessor),
+                        ('classifier', LogisticRegression())])
+
+
+
+
 # Create a Linear Regression model and fit it to your training data
-model = LinearRegression()
 model.fit(X_train, y_train)
 
 # Use your trained model to make predictions on your test data
@@ -93,3 +121,4 @@ y_pred = model.predict(X_test)
 # Evaluate your model
 mse = mean_squared_error(y_test, y_pred)
 print(f'Mean Squared Error: {mse}')
+# %%
